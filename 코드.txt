@@ -1,0 +1,329 @@
+﻿<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>GMP 미생물 QC - EM 실무 시뮬레이터</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css');
+    body { font-family: 'Pretendard', sans-serif; background-color: #f1f5f9; }
+    .step-active { background-color: #2563eb; color: white; border-color: #2563eb; }
+    .colony-dot { animation: popIn 0.35s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; }
+    @keyframes popIn { 0% { transform: scale(0); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
+    
+    /* 스트리킹 선이 직접 그어지는 애니메이션 */
+    .streak-line {
+      stroke-dasharray: 1200;
+      stroke-dashoffset: 1200;
+      animation: drawStreak 0.7s ease-out forwards;
+    }
+    @keyframes drawStreak {
+      to { stroke-dashoffset: 0; }
+    }
+  </style>
+</head>
+<body class="min-h-screen pb-12">
+
+  <!-- 상단 헤더 -->
+  <header class="bg-slate-900 text-white py-5 px-4 shadow-md sticky top-0 z-10">
+    <div class="max-w-xl mx-auto flex justify-between items-center">
+      <div>
+        <span class="text-xs font-semibold bg-blue-600 px-2 py-0.5 rounded text-blue-100">GMP Portfolio</span>
+        <h1 class="text-lg font-bold mt-1">미생물 QC 환경모니터링(EM) 워크플로우</h1>
+      </div>
+      <div class="text-right text-xs text-slate-400">
+        Interactive<br>Web Guide
+      </div>
+    </div>
+  </header>
+
+  <main class="max-w-xl mx-auto px-4 mt-6">
+    <!-- 단계 선택 탭 -->
+    <div class="grid grid-cols-5 gap-1.5 mb-6" id="step-tabs">
+      <button onclick="setStep(0)" class="step-btn step-active py-2 px-1 rounded-lg border text-xs font-bold shadow-sm transition">1. 배양</button>
+      <button onclick="setStep(1)" class="step-btn bg-white text-slate-600 py-2 px-1 rounded-lg border text-xs font-bold shadow-sm transition">2. CFU계수</button>
+      <button onclick="setStep(2)" class="step-btn bg-white text-slate-600 py-2 px-1 rounded-lg border text-xs font-bold shadow-sm transition">3. 스트리킹</button>
+      <button onclick="setStep(3)" class="step-btn bg-white text-slate-600 py-2 px-1 rounded-lg border text-xs font-bold shadow-sm transition">4. 그람염색</button>
+      <button onclick="setStep(4)" class="step-btn bg-white text-slate-600 py-2 px-1 rounded-lg border text-xs font-bold shadow-sm transition">5. 균주동정</button>
+    </div>
+
+    <!-- 메인 카드 영역 -->
+    <div id="content-area" class="bg-white rounded-2xl shadow-lg p-6 border border-slate-100 min-h-[460px] flex flex-col justify-between">
+      <!-- 자바스크립트로 내용이 렌더링 됩니다 -->
+    </div>
+
+    <!-- 하단 이전/다음 버튼 -->
+    <div class="flex justify-between mt-4">
+      <button id="prev-btn" onclick="changeStep(-1)" class="px-5 py-2.5 rounded-xl bg-white border border-slate-300 text-slate-700 font-semibold text-sm shadow-sm disabled:opacity-40">← 이전 단계</button>
+      <button id="next-btn" onclick="changeStep(1)" class="px-5 py-2.5 rounded-xl bg-blue-600 text-white font-semibold text-sm shadow-sm hover:bg-blue-700 disabled:opacity-40">다음 단계 →</button>
+    </div>
+  </main>
+
+  <script>
+    let currentStep = 0;
+    let cfuGrade = 'A';
+    let cfuCount = 0;
+    let streakPhase = 1;
+    let showGuide = true;
+    let gramType = 'pos';
+
+    function setStep(step) {
+      currentStep = step;
+      document.querySelectorAll('.step-btn').forEach((btn, idx) => {
+        if (idx === step) {
+          btn.classList.add('step-active');
+          btn.classList.remove('bg-white', 'text-slate-600');
+        } else {
+          btn.classList.remove('step-active');
+          btn.classList.add('bg-white', 'text-slate-600');
+        }
+      });
+      document.getElementById('prev-btn').disabled = (step === 0);
+      document.getElementById('next-btn').disabled = (step === 4);
+      renderContent();
+    }
+
+    function changeStep(dir) {
+      if (currentStep + dir >= 0 && currentStep + dir <= 4) {
+        setStep(currentStep + dir);
+      }
+    }
+
+    function renderContent() {
+      const area = document.getElementById('content-area');
+      if (currentStep === 0) {
+        area.innerHTML = `
+          <div>
+            <span class="text-xs font-bold text-blue-600 uppercase">Step 01. Incubation</span>
+            <h2 class="text-xl font-extrabold text-slate-800 mt-1">EM 배지 수거 및 배양</h2>
+            <p class="text-sm text-slate-600 mt-2 leading-relaxed">클린룸(Grade A~D)에서 부유균, 낙하균, 표면균 샘플링을 마친 배지를 배양기(Incubator)에 넣고 정해진 온도와 기간 동안 배양합니다.</p>
+            
+            <div class="grid grid-cols-2 gap-3 mt-5">
+              <div class="bg-amber-50 border border-amber-200 p-4 rounded-xl">
+                <div class="w-10 h-10 rounded-full bg-amber-200 flex items-center justify-center font-bold text-amber-800 mb-2">TSA</div>
+                <h3 class="font-bold text-slate-800 text-sm">총 호기성 세균 배지</h3>
+                <p class="text-xs text-slate-600 mt-1">• 온도: <b>30 ~ 35°C</b><br>• 기간: <b>48 ~ 72시간</b><br>• 대두카제인소화한천배지</p>
+              </div>
+              <div class="bg-emerald-50 border border-emerald-200 p-4 rounded-xl">
+                <div class="w-10 h-10 rounded-full bg-emerald-200 flex items-center justify-center font-bold text-emerald-800 mb-2">SDA</div>
+                <h3 class="font-bold text-slate-800 text-sm">진균(효모/곰팡이) 배지</h3>
+                <p class="text-xs text-slate-600 mt-1">• 온도: <b>20 ~ 25°C</b><br>• 기간: <b>5 ~ 7일</b><br>• 사부로덱스트로오스배지</p>
+              </div>
+            </div>
+          </div>
+          <div class="bg-slate-50 p-3.5 rounded-xl border border-slate-200 mt-6 text-xs text-slate-700">
+            💡 <b>GMP 실무 포인트:</b> 배지 투입 전 배지성능시험(GPT) 적합 여부를 반드시 확인하며, 배양기 내부 온도는 매일 모니터링 기록을 남깁니다.
+          </div>
+        `;
+      } else if (currentStep === 1) {
+        const limits = { 'A': 1, 'B': 10, 'C': 100 };
+        const isFail = cfuCount >= limits[cfuGrade];
+        let dotsHtml = '';
+        for(let i=0; i<cfuCount; i++) {
+          const top = 20 + ((i * 37) % 60);
+          const left = 20 + ((i * 53) % 60);
+          dotsHtml += `<div class="colony-dot w-3 h-3 bg-yellow-300 border border-yellow-600 rounded-full absolute shadow" style="top:${top}%; left:${left}%;"></div>`;
+        }
+
+        area.innerHTML = `
+          <div>
+            <span class="text-xs font-bold text-blue-600 uppercase">Step 02. CFU Counting</span>
+            <h2 class="text-xl font-extrabold text-slate-800 mt-1">CFU 집락 계수 및 적합 판정</h2>
+            <p class="text-sm text-slate-600 mt-1">클린룸 등급과 검출된 콜로니(CFU) 수를 조절하여 판정 결과를 확인해 보세요.</p>
+
+            <div class="flex gap-2 mt-4">
+              <button onclick="cfuGrade='A'; renderContent();" class="flex-1 py-1.5 text-xs font-bold rounded border ${cfuGrade==='A'?'bg-slate-800 text-white':'bg-slate-100'}">Grade A (무균)</button>
+              <button onclick="cfuGrade='B'; renderContent();" class="flex-1 py-1.5 text-xs font-bold rounded border ${cfuGrade==='B'?'bg-slate-800 text-white':'bg-slate-100'}">Grade B</button>
+              <button onclick="cfuGrade='C'; renderContent();" class="flex-1 py-1.5 text-xs font-bold rounded border ${cfuGrade==='C'?'bg-slate-800 text-white':'bg-slate-100'}">Grade C</button>
+            </div>
+
+            <div class="flex items-center justify-around my-5 bg-slate-50 p-4 rounded-xl border">
+              <div class="relative w-28 h-28 rounded-full bg-amber-100 border-4 border-amber-300 shadow-inner overflow-hidden">
+                ${dotsHtml}
+              </div>
+              <div class="text-center">
+                <div class="text-xs text-slate-500">검출 집락 수</div>
+                <div class="text-2xl font-black text-slate-800 my-1">${cfuCount} <span class="text-sm font-normal">CFU</span></div>
+                <div class="flex gap-1 justify-center mt-2">
+                  <button onclick="if(cfuCount>0){cfuCount--; renderContent();}" class="px-2.5 py-1 bg-white border rounded font-bold text-xs shadow-sm">-1</button>
+                  <button onclick="if(cfuCount<15){cfuCount++; renderContent();}" class="px-2.5 py-1 bg-white border rounded font-bold text-xs shadow-sm">+1</button>
+                  <button onclick="cfuCount=0; renderContent();" class="px-2 py-1 bg-slate-200 rounded text-xs">초기화</button>
+                </div>
+              </div>
+            </div>
+
+            <div class="p-3.5 rounded-xl border ${isFail ? 'bg-red-50 border-red-300 text-red-800' : 'bg-green-50 border-green-300 text-green-800'} text-xs">
+              <b>판정 결과 (Action Level: ${limits[cfuGrade]} CFU 이상):</b><br>
+              ${isFail ? '🚨 <b>기준 일탈 (Action Level 초과)!</b> 즉시 일탈 보고 후 3단계(Streaking 및 균 동정)를 진행하여 오염원을 추적해야 합니다.' : '✅ <b>적합 (Pass)!</b> 기준치 이내로 정상 판정 및 성적서를 발행합니다.'}
+            </div>
+          </div>
+        `;
+      } else if (currentStep === 2) {
+        const desc = [
+          "",
+          "<b>1구역 (고농도 접종):</b> 검체 콜로니를 백금이(Loop)로 채취해 1번 구역에 아주 촘촘하고 빽빽하게 지그재그로 도말합니다.",
+          "<b>2구역 (1차 희석):</b> 백금이를 화염 멸균 후 식힌 뒤, <b>1구역 끝자락을 2~3번 살짝 겹쳐</b> 균을 끌고 나오며 지그재그로 도말합니다.",
+          "<b>3구역 (2차 희석):</b> 다시 백금이를 화염 멸균하고 식힌 뒤, <b>2구역 끝자락을 살짝 겹쳐</b> 3구역으로 넓게 도말합니다.",
+          "<b>4구역 (단일 콜로니 확보):</b> 마지막으로 3구역 끝에서 중앙(4구역)으로 여유 있게 지그재그를 그리면, 배양 후 선 끝에 <b>독립된 단일 콜로니(Single Colony)</b>가 형성됩니다!"
+        ];
+
+        area.innerHTML = `
+          <div>
+            <div class="flex justify-between items-start">
+              <div>
+                <span class="text-xs font-bold text-blue-600 uppercase">Step 03. Quadrant Streaking</span>
+                <h2 class="text-xl font-extrabold text-slate-800 mt-1">4분할 획선도말 (순수 분리)</h2>
+              </div>
+              <button onclick="showGuide=!showGuide; renderContent();" class="text-[11px] px-2.5 py-1 rounded-lg border font-semibold ${showGuide ? 'bg-red-50 text-red-600 border-red-200' : 'bg-slate-100 text-slate-500'}">
+                ${showGuide ? '🔴 분할선 ON' : '⚪ 분할선 OFF'}
+              </button>
+            </div>
+            <p class="text-sm text-slate-600 mt-1">정확한 균 동정(ID)을 위해 섞여 있는 균에서 <b>단일 콜로니(Single Colony)</b>를 분리합니다. 아래 버튼을 눌러 도말 단계를 진행해 보세요.</p>
+
+            <!-- 실제 4분할 스트리킹 SVG 그래픽 배지 -->
+            <div class="flex flex-col items-center my-4 bg-slate-50 py-4 rounded-2xl border border-slate-200">
+              <div class="relative w-52 h-52">
+                <svg viewBox="0 0 200 200" class="w-full h-full drop-shadow-md">
+                  <defs>
+                    <clipPath id="plate-clip">
+                      <circle cx="100" cy="100" r="91" />
+                    </clipPath>
+                  </defs>
+
+                  <!-- TSA 한천 배지 배경 원 -->
+                  <circle cx="100" cy="100" r="94" fill="#fef3c7" stroke="#f59e0b" stroke-width="5" />
+                  <circle cx="100" cy="100" r="89" fill="none" stroke="#fde68a" stroke-width="1.5" />
+
+                  <g clip-path="url(#plate-clip)">
+                    <!-- 배지 뒷면 4분할 가이드라인 & 구역 번호 (첨부 이미지와 동일한 각도) -->
+                    ${showGuide ? `
+                      <g opacity="0.65">
+                        <!-- L1: 1구역 분할선 -->
+                        <line x1="6" y1="108" x2="112" y2="6" stroke="#475569" stroke-width="2" stroke-dasharray="4,3" />
+                        <!-- L2: 2구역 분할선 -->
+                        <line x1="75" y1="42" x2="178" y2="165" stroke="#475569" stroke-width="2" stroke-dasharray="4,3" />
+                        <!-- L3: 3구역 분할선 -->
+                        <line x1="150" y1="132" x2="45" y2="195" stroke="#475569" stroke-width="2" stroke-dasharray="4,3" />
+                        
+                        <!-- 구역 번호 (1, 2, 3, 4) -->
+                        <text x="48" y="45" fill="#dc2626" font-weight="900" font-size="18">1</text>
+                        <text x="152" y="75" fill="#dc2626" font-weight="900" font-size="18">2</text>
+                        <text x="115" y="182" fill="#dc2626" font-weight="900" font-size="18">3</text>
+                        <text x="52" y="110" fill="#dc2626" font-weight="900" font-size="18">4</text>
+                      </g>
+                    ` : ''}
+
+                    <!-- 1구역 스트리킹 (왼쪽 위: 매우 빽빽한 지그재그 도말) -->
+                    ${streakPhase >= 1 ? `
+                      <path class="${streakPhase===1 ? 'streak-line' : ''}"
+                        d="M 14 96 L 88 12 L 20 88 L 95 16 L 16 78 L 102 22 L 18 68 L 85 15 L 25 55 L 75 14 L 35 42 L 62 16 L 22 95 L 98 25 L 28 85 L 92 30"
+                        fill="none" stroke="#1e293b" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round" />
+                    ` : ''}
+
+                    <!-- 2구역 스트리킹 (오른쪽: 1구역 끝과 겹쳐서 지그재그로 내려옴) -->
+                    ${streakPhase >= 2 ? `
+                      <path class="${streakPhase===2 ? 'streak-line' : ''}"
+                        d="M 78 24 L 138 22 L 84 34 L 158 36 L 92 44 L 172 52 L 108 58 L 182 68 L 118 72 L 186 86 L 128 86 L 186 104 L 138 100 L 184 122 L 146 114 L 178 138 L 154 126 L 172 148"
+                        fill="none" stroke="#1e293b" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round" />
+                    ` : ''}
+
+                    <!-- 3구역 스트리킹 (오른쪽 아래: 2구역 하단과 겹쳐서 지그재그 도말) -->
+                    ${streakPhase >= 3 ? `
+                      <path class="${streakPhase===3 ? 'streak-line' : ''}"
+                        d="M 168 118 L 152 176 L 156 124 L 136 184 L 144 134 L 118 188 L 130 144 L 102 188 L 116 154 L 86 186 L 104 162 L 72 184"
+                        fill="none" stroke="#1e293b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                    ` : ''}
+
+                    <!-- 4구역 스트리킹 (중앙: 3구역에서 중앙으로 뻗어나오며 단일 콜로니 형성) -->
+                    ${streakPhase >= 4 ? `
+                      <path class="streak-line"
+                        d="M 132 172 L 38 118 L 115 152 L 45 102 L 105 130 L 58 88 L 98 110 L 72 76 L 95 92"
+                        fill="none" stroke="#1e293b" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" />
+                      <!-- 분리된 Single Colonies (단일 콜로니 알갱이들) -->
+                      <circle cx="66" cy="84" r="3.8" fill="#facc15" stroke="#b45309" stroke-width="1.5" class="colony-dot" />
+                      <circle cx="80" cy="72" r="3.8" fill="#facc15" stroke="#b45309" stroke-width="1.5" class="colony-dot" />
+                      <circle cx="92" cy="86" r="3.8" fill="#facc15" stroke="#b45309" stroke-width="1.5" class="colony-dot" />
+                      <circle cx="62" cy="68" r="3.8" fill="#facc15" stroke="#b45309" stroke-width="1.5" class="colony-dot" />
+                      <circle cx="46" cy="78" r="3.8" fill="#facc15" stroke="#b45309" stroke-width="1.5" class="colony-dot" />
+                      <circle cx="75" cy="58" r="3.8" fill="#facc15" stroke="#b45309" stroke-width="1.5" class="colony-dot" />
+                    ` : ''}
+                  </g>
+                </svg>
+              </div>
+
+              <!-- 배지 하단 상태 캡션 -->
+              <div class="mt-2 text-center">
+                <span class="text-xs font-extrabold text-slate-700 bg-white px-3 py-1 rounded-full border shadow-sm">
+                  4분할 TSA 배지 — <span class="text-blue-600">${streakPhase}단계 도말 완료</span>
+                </span>
+                ${streakPhase === 4 ? '<div class="mt-1.5 text-xs font-bold text-amber-700 animate-bounce">★ 4구역 끝에 독립된 단일 콜로니(노란 점) 확보 성공!</div>' : ''}
+              </div>
+            </div>
+
+            <!-- 1~4구역 선택 버튼 -->
+            <div class="grid grid-cols-4 gap-2 mb-3">
+              ${[1,2,3,4].map(n => `<button onclick="streakPhase=${n}; renderContent();" class="py-2 rounded-lg font-bold text-xs border transition ${streakPhase===n ? 'bg-blue-600 text-white border-blue-600 shadow' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'}">${n}구역 도말</button>`).join('')}
+            </div>
+
+            <div class="bg-blue-50 border border-blue-200 p-3.5 rounded-xl text-xs text-blue-900 leading-relaxed">
+              🔬 <b>실험 절차:</b> ${desc[streakPhase]}
+            </div>
+          </div>
+        `;
+      } else if (currentStep === 3) {
+        area.innerHTML = `
+          <div>
+            <span class="text-xs font-bold text-blue-600 uppercase">Step 04. Gram Staining</span>
+            <h2 class="text-xl font-extrabold text-slate-800 mt-1">그람 염색 및 현미경 검경</h2>
+            <p class="text-sm text-slate-600 mt-1">세포벽(펩티도글리칸 층) 두께 차이를 이용해 균을 1차 분류합니다.</p>
+
+            <div class="grid grid-cols-4 gap-1.5 text-center my-4 text-[11px]">
+              <div class="bg-purple-100 text-purple-900 p-2 rounded-lg font-semibold">1. 염색<br><span class="text-[10px] font-normal">크리스탈 바이올렛</span></div>
+              <div class="bg-amber-100 text-amber-900 p-2 rounded-lg font-semibold">2. 매염<br><span class="text-[10px] font-normal">요오드 용액</span></div>
+              <div class="bg-slate-200 text-slate-800 p-2 rounded-lg font-semibold">3. 탈색<br><span class="text-[10px] font-normal">95% 알코올</span></div>
+              <div class="bg-rose-100 text-rose-900 p-2 rounded-lg font-semibold">4. 대조염색<br><span class="text-[10px] font-normal">사프라닌</span></div>
+            </div>
+
+            <div class="flex gap-2 mb-4">
+              <button onclick="gramType='pos'; renderContent();" class="flex-1 py-2 rounded-lg font-bold text-xs border ${gramType==='pos' ? 'bg-purple-700 text-white' : 'bg-white text-slate-700'}">보라색 (그람 양성균)</button>
+              <button onclick="gramType='neg'; renderContent();" class="flex-1 py-2 rounded-lg font-bold text-xs border ${gramType==='neg' ? 'bg-rose-600 text-white' : 'bg-white text-slate-700'}">붉은색 (그람 음성균)</button>
+            </div>
+
+            <div class="p-4 rounded-xl border ${gramType==='pos' ? 'bg-purple-50 border-purple-200 text-purple-950' : 'bg-rose-50 border-rose-200 text-rose-950'} text-xs leading-relaxed">
+              ${gramType==='pos' 
+                ? '🟣 <b>그람 양성균 (Gram Positive - 보라색):</b><br>• 두꺼운 펩티도글리칸 세포벽이 알코올 탈색 후에도 보라색을 유지함<br>• <b>주요 추정 오염원:</b> 작업자의 피부 각질, 머리카락, 호흡기 (예: <i>Staphylococcus</i>, <i>Micrococcus</i>, <i>Bacillus</i> 속)' 
+                : '🔴 <b>그람 음성균 (Gram Negative - 분홍/붉은색):</b><br>• 지질 함량이 높은 외막이 알코올에 녹아 탈색된 후 사프라닌에 붉게 염색됨<br>• <b>주요 추정 오염원:</b> 정제수/용수 시스템, 세척수, 습한 배수구 (예: <i>Pseudomonas</i>, <i>Burkholderia</i> 속) — <b>엔도톡신(내독소) 유발 주의!</b>'}
+            </div>
+          </div>
+        `;
+      } else if (currentStep === 4) {
+        area.innerHTML = `
+          <div>
+            <span class="text-xs font-bold text-blue-600 uppercase">Step 05. Microbial Identification</span>
+            <h2 class="text-xl font-extrabold text-slate-800 mt-1">최종 균주 동정 및 CAPA 수립</h2>
+            <p class="text-sm text-slate-600 mt-2 leading-relaxed">그람 염색 결과에 맞춰 자동화 동정 장비를 가동하고, 오염 원인을 제거하는 시정 및 예방조치(CAPA)를 수행합니다.</p>
+
+            <div class="space-y-3 mt-4 text-xs">
+              <div class="p-3.5 bg-slate-50 rounded-xl border border-slate-200">
+                <h3 class="font-bold text-slate-800 text-sm">1. VITEK 2 (생화학적 자동 동정)</h3>
+                <p class="text-slate-600 mt-1">그람 염색 결과에 따라 <b>GP 카드(그람 양성)</b> 또는 <b>GN 카드(그람 음성)</b>, <b>BCL 카드(바실러스)</b>를 선택하고 맥팔랜드(McFarland) 탁도를 맞춘 균 현탁액을 주입해 종(Species)을 분석합니다.</p>
+              </div>
+              <div class="p-3.5 bg-slate-50 rounded-xl border border-slate-200">
+                <h3 class="font-bold text-slate-800 text-sm">2. 오염원 역학조사 및 CAPA</h3>
+                <p class="text-slate-600 mt-1">동정된 균이 피부 상재균이면 <b>작업자 무균 갱의 및 수지 소독 재교육</b>을, 용수 유래균이면 <b>클린룸 소독제 로테이션 및 설비 멸균</b>을 진행합니다.</p>
+              </div>
+            </div>
+          </div>
+          <div class="bg-blue-600 text-white p-3.5 rounded-xl mt-6 text-xs text-center font-medium shadow">
+            🎉 <b>전체 EM 미생물 QC 프로세스 시뮬레이션을 완료했습니다!</b>
+          </div>
+        `;
+      }
+    }
+
+    // 초기 실행
+    renderContent();
+  </script>
+</body>
+</html>
